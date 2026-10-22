@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Cloud Task Tracker</title>
+  <style>
+    :root{font-family:Inter,system-ui,-apple-system,Segoe UI,sans-serif;color:#15233b;background:#f4f7fb}
+    *{box-sizing:border-box}body{margin:0}header{background:#15345b;color:#fff;padding:28px 18px}
+    .wrap{max-width:900px;margin:auto;padding:0 18px}header p{color:#dbe7f5;margin-bottom:0}
+    main{padding:28px 0}.panel{background:#fff;border:1px solid #e0e8f2;border-radius:16px;padding:22px;margin-bottom:18px;box-shadow:0 8px 24px #17345b0b}
+    h1{margin:0;font-size:clamp(1.7rem,4vw,2.4rem)}h2{margin-top:0;font-size:1.2rem}
+    form{display:flex;gap:10px;flex-wrap:wrap}input{flex:1;min-width:180px;padding:12px;border:1px solid #c7d3e2;border-radius:9px;font:inherit}
+    button{border:0;border-radius:9px;padding:11px 15px;background:#1d65b7;color:white;font:inherit;font-weight:650;cursor:pointer}
+    button.secondary{background:#e8eff8;color:#17345b}button:focus,input:focus{outline:3px solid #9cc9ff;outline-offset:2px}
+    .status{display:inline-flex;align-items:center;gap:8px;font-size:.9rem;color:#17623c;background:#e8f7ee;border-radius:999px;padding:6px 10px}
+    .dot{width:8px;height:8px;border-radius:50%;background:#1c9b59}.task{display:flex;align-items:center;gap:12px;border-top:1px solid #edf1f6;padding:14px 0}
+    .task:first-child{border-top:0}.task-title{flex:1;overflow-wrap:anywhere}.done{text-decoration:line-through;color:#77859a}
+    .muted{color:#66758b;font-size:.92rem}.error{color:#a12b2b;min-height:1.3em}.empty{padding:18px 0;color:#66758b}
+    footer{padding:12px 0 28px;color:#66758b;font-size:.85rem}
+  </style>
+</head>
+<body>
+<header><div class="wrap"><h1>Cloud Task Tracker</h1><p>A small cloud-hosted application for creating and tracking tasks.</p></div></header>
+<main class="wrap">
+  <section class="panel">
+    <h2>Service health</h2>
+    <span class="status"><span class="dot"></span><span id="health">Checking service…</span></span>
+    <p class="muted">Health endpoint: <code>/health</code> · API endpoint: <code>/api/tasks</code></p>
+  </section>
+  <section class="panel">
+    <h2>Add a task</h2>
+    <form id="task-form"><input id="title" maxlength="120" placeholder="e.g., Verify deployment logs" aria-label="Task title" required><button type="submit">Add task</button></form>
+    <p class="error" id="message" role="status"></p>
+  </section>
+  <section class="panel">
+    <h2>Your tasks</h2><div id="tasks"><p class="empty">Loading tasks…</p></div>
+  </section>
+  <footer>Cloud Computing Laboratory · Assignment 8 · Demo data is held in memory and resets when the service restarts.</footer>
+</main>
+<script>
+const taskBox=document.getElementById('tasks'), message=document.getElementById('message');
+async function loadHealth(){try{const r=await fetch('/health');if(!r.ok)throw Error();const d=await r.json();document.getElementById('health').textContent='Healthy · '+d.status;}catch{document.getElementById('health').textContent='Health check failed';}}
+async function loadTasks(){try{const r=await fetch('/api/tasks');if(!r.ok)throw Error('Could not load tasks');const tasks=await r.json();taskBox.innerHTML='';if(!tasks.length){taskBox.innerHTML='<p class="empty">No tasks yet. Add one above.</p>';return;}
+tasks.forEach(t=>{const row=document.createElement('div');row.className='task';const title=document.createElement('span');title.className='task-title'+(t.done?' done':'');title.textContent=t.title;const btn=document.createElement('button');btn.className='secondary';btn.textContent=t.done?'Mark open':'Mark done';btn.onclick=async()=>{await fetch('/api/tasks/'+t.id,{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({done:!t.done})});loadTasks();};row.append(title,btn);taskBox.append(row);});}catch(e){taskBox.innerHTML='<p class="error">Unable to load tasks. Check service logs.</p>';}}
+document.getElementById('task-form').addEventListener('submit',async e=>{e.preventDefault();message.textContent='';const input=document.getElementById('title');try{const r=await fetch('/api/tasks',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({title:input.value})});const d=await r.json();if(!r.ok)throw Error(d.error||'Request failed');input.value='';await loadTasks();}catch(err){message.textContent=err.message;}});
+loadHealth();loadTasks();
+</script>
+</body></html>
